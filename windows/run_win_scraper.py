@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common_models import Email
 from csv_storage import save_to_csv
-from mac_outlook_client import (
+from win_outlook_client import (
     get_outlook_accounts,
     get_mailboxes_for_account,
     get_emails_from_date,
@@ -50,7 +50,7 @@ def get_csv_filename(account_name: str, mailbox_name: str, date_str: str) -> str
 
 def main():
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Scrape Outlook emails on macOS')
+    parser = argparse.ArgumentParser(description='Scrape Outlook emails on Windows')
     parser.add_argument('--date', type=str, help='Date to scrape emails from (DD-MM-YYYY)')
     parser.add_argument('--output', type=str, help='Output CSV file (overwrites the default naming)')
     parser.add_argument('--latest', action='store_true', help='Get only the most recent email')
@@ -175,4 +175,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main() 

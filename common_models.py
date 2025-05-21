@@ -1,17 +1,20 @@
-# common_models.py
-# Defines common data structures used across the scraper.
-
+#!/usr/bin/env python3
 from dataclasses import dataclass
+from typing import List, Dict, Optional
 from datetime import datetime
-from typing import Optional
+
 
 @dataclass
 class Email:
-    """
-    Represents a single email with its relevant details.
-    """
-    message_id: str  # Unique ID from Outlook for the message
-    subject: Optional[str] = None
-    body: Optional[str] = None
-    sender_address: Optional[str] = None
-    received_date: Optional[datetime] = None # Python datetime object
+    """Data model for an email message."""
+    subject: str
+    content: str
+    received: str
+
+    def to_dict(self) -> Dict[str, str]:
+        """Convert to dictionary for CSV export."""
+        return {
+            "subject": self.subject,
+            "content": self.content,
+            "received": self.received
+        }
