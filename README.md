@@ -81,6 +81,29 @@ This will print:
 
 ---
 
+## 📧 Parsing Outlook Data
+
+### Prerequisites
+- **Legacy Outlook:** This project requires legacy Outlook (not the new Outlook app) to parse email data. Make sure you have legacy Outlook installed on your computer.
+
+### Steps to Parse Outlook Data
+1. **Open Legacy Outlook** on your computer.
+2. **Export Your Emails:**
+   - Go to `File` > `Open & Export` > `Import/Export`.
+   - Select `Export to a file` and click `Next`.
+   - Choose `Outlook Data File (.pst)` and click `Next`.
+   - Select the folder you want to export (e.g., Inbox) and click `Next`.
+   - Choose a location to save the `.pst` file and click `Finish`.
+3. **Convert PST to CSV:**
+   - Use a tool like [PST to CSV Converter](https://www.systoolsgroup.com/pst-to-csv-converter/) to convert your `.pst` file to a CSV format.
+   - Save the CSV file in the `csv_files` folder of this project.
+4. **Update the Script:**
+   - Open `analysis/text_analysis.py` and update the CSV file path to point to your new CSV file.
+5. **Run the Analysis:**
+   - Follow the steps in the "Run the Text Analysis Script" section to analyze your Outlook data.
+
+---
+
 ## 🛠️ Troubleshooting
 - If you see errors about missing packages, repeat steps 7 and 8.
 - If you see a message about "command not found: conda", make sure Anaconda is installed and you are using the Anaconda Prompt or Terminal.
