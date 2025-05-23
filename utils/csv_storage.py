@@ -3,7 +3,7 @@ import csv
 import os
 import re
 from typing import List, Dict, Optional
-from common_models import Email
+from models.common_models import Email
 
 
 def ensure_directory_exists(file_path: str) -> None:

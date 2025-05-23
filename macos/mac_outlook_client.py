@@ -4,7 +4,7 @@ import re
 import html
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
-from common_models import Email
+from models.common_models import Email
 
 
 def clean_email_content(content: str) -> str:

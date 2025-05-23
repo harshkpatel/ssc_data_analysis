@@ -9,8 +9,8 @@ from typing import List, Optional
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from common_models import Email
-from csv_storage import save_to_csv
+from models.common_models import Email
+from utils.csv_storage import save_to_csv
 from win_outlook_client import (
     get_outlook_accounts,
     get_mailboxes_for_account,

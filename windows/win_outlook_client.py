@@ -3,7 +3,7 @@ import win32com.client
 import pythoncom
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
-from common_models import Email
+from models.common_models import Email
 
 
 def get_outlook_accounts() -> List[str]:
