@@ -7,6 +7,57 @@ from datetime import datetime, timedelta
 from common_models import Email
 
 
+def clean_email_content(content: str) -> str:
+    """
+    Clean email content by removing quoted/forwarded content, greetings, signatures,
+    and non-printable characters. Normalizes whitespace for better textual analysis.
+    """
+    # Remove quoted/forwarded content
+    lines = content.split('\n')
+    cleaned_lines = []
+    in_quoted_content = False
+    for line in lines:
+        if re.match(r'On .*wrote:', line.strip()) or \
+           re.match(r'From:.*Sent:.*', line.strip()) or \
+           re.match(r'^>.*', line.strip()):
+            in_quoted_content = True
+            continue
+        if in_quoted_content:
+            continue
+        cleaned_lines.append(line)
+    
+    # Remove leading/trailing whitespace and empty lines
+    cleaned_lines = [l.strip() for l in cleaned_lines if l.strip()]
+    if not cleaned_lines:
+        return ''
+
+    # Remove greeting (first line if it's a greeting)
+    greetings = [
+        'hi', 'hello', 'dear', 'hey', 'greetings', 'good morning', 'good afternoon', 'good evening'
+    ]
+    if cleaned_lines[0].lower().split(',')[0] in greetings or \
+       any(cleaned_lines[0].lower().startswith(g + ' ') for g in greetings):
+        cleaned_lines = cleaned_lines[1:]
+
+    # Remove signature (lines after a signature word)
+    signature_keywords = [
+        'thanks', 'thank you', 'regards', 'best', 'cheers', 'sincerely', 'sent from my', 'yours truly', 'warm regards', 'kind regards', 'respectfully', 'with appreciation', 'with gratitude'
+    ]
+    main_body = []
+    for line in cleaned_lines:
+        # If the line is a signature keyword or starts with one, stop here
+        if any(line.lower().startswith(word) for word in signature_keywords):
+            break
+        main_body.append(line)
+    
+    # Join lines and clean up extra whitespace
+    cleaned_content = '\n'.join(main_body)
+    cleaned_content = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned_content)  # Remove excessive newlines
+    cleaned_content = re.sub(r'[^\x20-\x7E\n]', '', cleaned_content)  # Remove non-printable characters
+    cleaned_content = re.sub(r'\s+', ' ', cleaned_content)  # Normalize whitespace
+    return cleaned_content.strip()
+
+
 def run_applescript(script: str) -> str:
     """Execute AppleScript and return the result."""
     process = subprocess.Popen(
@@ -263,9 +314,11 @@ def get_emails_from_date(account_name: str, mailbox_name: str, target_date: str)
         if result and "|||DELIM|||" in result:
             parts = result.split("|||DELIM|||", 2)
             if len(parts) >= 3:
+                # Clean the email content before creating the Email object
+                cleaned_content = clean_email_content(parts[1].strip())
                 email = Email(
                     subject=parts[0].strip(),
-                    content=parts[1].strip(),
+                    content=cleaned_content,
                     received=parts[2].strip()
                 )
                 emails.append(email)
@@ -345,6 +398,75 @@ def list_emails_in_mailbox(account_name: str, mailbox_name: str, limit: int = 10
     return emails_info
 
 
+def get_email_with_attachments(account_name: str, mailbox_name: str, msg_id: str) -> tuple:
+    """
+    Get email content and information about attachments/images.
+    Returns a tuple of (cleaned_content, attachments_info)
+    """
+    script = f'''
+    tell application "Microsoft Outlook"
+        set acct to (first exchange account whose name is "{account_name}")
+        set mb to (first mail folder of acct whose name is "{mailbox_name}")
+        set msg to (first message of mb whose id is "{msg_id}")
+
+        set msgContent to plain text content of msg
+        set attachmentInfo to {{}}
+        
+        -- Get information about attachments
+        repeat with att in attachments of msg
+            set attName to name of att
+            set attSize to size of att
+            set attType to content type of att
+            
+            -- Check if it's an image
+            if attType starts with "image/" then
+                set end of attachmentInfo to "IMAGE:" & attName & " (" & attSize & " bytes)"
+            else
+                set end of attachmentInfo to "ATTACHMENT:" & attName & " (" & attSize & " bytes)"
+            end if
+        end repeat
+        
+        -- Get information about embedded images
+        set embeddedImages to {{}}
+        try
+            set htmlContent to HTML content of msg
+            set imageCount to count of (every paragraph of htmlContent where it contains "<img")
+            if imageCount > 0 then
+                set end of embeddedImages to "EMBEDDED_IMAGES:" & imageCount & " images found"
+            end if
+        end try
+        
+        -- Combine all information
+        set allInfo to msgContent & "|||ATTACHMENTS|||" & attachmentInfo & "|||EMBEDDED|||" & embeddedImages
+        return allInfo
+    end tell
+    '''
+    
+    result = run_applescript(script)
+    if not result or "|||ATTACHMENTS|||" not in result:
+        return "", []  # Return empty string instead of undefined content
+        
+    parts = result.split("|||ATTACHMENTS|||")
+    content = parts[0].strip()
+    
+    attachments_info = []
+    if len(parts) > 1:
+        attachments_part = parts[1].split("|||EMBEDDED|||")
+        if attachments_part[0].strip():
+            attachments_info.extend(attachments_part[0].strip().split(", "))
+        if len(attachments_part) > 1 and attachments_part[1].strip():
+            attachments_info.extend(attachments_part[1].strip().split(", "))
+    
+    # Clean the content
+    cleaned_content = clean_email_content(content)
+    
+    # Add attachment information to the content
+    if attachments_info:
+        cleaned_content += "\n\n[Attachments and Images:\n" + "\n".join(attachments_info) + "]"
+    
+    return cleaned_content, attachments_info
+
+
 def get_most_recent_email(account_name: str, mailbox_name: str) -> Optional[Email]:
     """
     Get the most recent email from a specific account and mailbox.
@@ -373,8 +495,8 @@ def get_most_recent_email(account_name: str, mailbox_name: str) -> Optional[Emai
             end if
         end repeat
 
+        set msgID to id of latestMsg
         set msgSubject to subject of latestMsg
-        set msgContent to plain text content of latestMsg
         set msgTime to time received of latestMsg
 
         set msgYear to year of msgTime as string
@@ -384,8 +506,7 @@ def get_most_recent_email(account_name: str, mailbox_name: str) -> Optional[Emai
         if (count of msgDay) is 1 then set msgDay to "0" & msgDay
         set dateOnly to msgYear & "-" & msgMonth & "-" & msgDay
 
-        # Format with simple unique delimiter
-        return msgSubject & "|||DELIM|||" & msgContent & "|||DELIM|||" & dateOnly
+        return msgID & "|||DELIM|||" & msgSubject & "|||DELIM|||" & dateOnly
     end tell
     '''
 
@@ -393,12 +514,19 @@ def get_most_recent_email(account_name: str, mailbox_name: str) -> Optional[Emai
     if not result or "|||DELIM|||" not in result:
         return None
 
-    parts = result.split("|||DELIM|||", 2)  # Split only on first two delimiters
+    parts = result.split("|||DELIM|||", 2)
     if len(parts) >= 3:
+        msg_id = parts[0].strip()
+        subject = parts[1].strip()
+        received = parts[2].strip()
+        
+        # Get content with attachment information
+        content, _ = get_email_with_attachments(account_name, mailbox_name, msg_id)
+        
         return Email(
-            subject=parts[0].strip(),
-            content=parts[1].strip(),
-            received=parts[2].strip()
+            subject=subject,
+            content=content,
+            received=received
         )
 
     return None

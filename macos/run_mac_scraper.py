@@ -27,8 +27,8 @@ def get_csv_filename(account_name: str, mailbox_name: str, date_str: str) -> str
     Format: account_mailbox_date.csv (with spaces replaced by underscores)
     """
     # Replace spaces with underscores in account and mailbox names
-    account_clean = account_name.replace(' ', '_')
-    mailbox_clean = mailbox_name.replace(' ', '_')
+    account_clean = account_name.replace(' ', '-')
+    mailbox_clean = mailbox_name.replace(' ', '-')
 
     # If date_str is in DD-MM-YYYY format, convert to YYYY-MM-DD
     if re.match(r'\d{2}-\d{2}-\d{4}', date_str):
@@ -56,6 +56,7 @@ def main():
     parser.add_argument('--latest', action='store_true', help='Get only the most recent email')
     parser.add_argument('--debug', action='store_true', help='Show recent emails in the selected mailbox')
     parser.add_argument('--verbose', action='store_true', help='Show detailed processing information')
+    parser.add_argument('--count', type=int, help='Number of recent emails to parse')
     args = parser.parse_args()
 
     # Get accounts
@@ -125,6 +126,33 @@ def main():
         print(f"Received: {email.received}")
         content_preview = email.content[:100] + ("..." if len(email.content) > 100 else "")
         print(f"Content preview: {content_preview}")
+        print(f"\nSaved to: {output_file}")
+
+    elif args.count:
+        # Get the specified number of recent emails
+        print(f"Getting the last {args.count} emails from {selected_account}/{selected_mailbox}...")
+        emails = list_emails_in_mailbox(selected_account, selected_mailbox, args.count)
+        if not emails:
+            print("No emails found.")
+            return
+
+        # Set default output filename if not specified
+        output_file = args.output if args.output else get_csv_filename(selected_account, selected_mailbox, "recent")
+
+        # Save to CSV
+        save_to_csv(emails, output_file)
+
+        # Display summary
+        print(f"\nFound {len(emails)} emails.")
+        for i, email in enumerate(emails[:3], 1):  # Show preview of first 3
+            print(f"\nEmail {i}:")
+            print(f"Subject: {email['subject']}")
+            print(f"Display Date: {email['display_date']}")
+            print(f"Full Date: {email['full_date']}")
+
+        if len(emails) > 3:
+            print(f"\n... and {len(emails) - 3} more emails.")
+
         print(f"\nSaved to: {output_file}")
 
     else:
