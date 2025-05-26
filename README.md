@@ -1,82 +1,173 @@
-# Mac Outlook Email Scraper
+# SSC Data Analysis
 
-This tool allows you to scrape emails from Microsoft Outlook on macOS using AppleScript. It extracts the subject, cleaned content (main body only), and received date of emails.
+This project helps analyze emails from Microsoft Outlook by scraping and processing them into a structured format.
+
+## Important Requirements
+
+### Outlook Version Requirements
+- **For macOS Users**: This tool requires the **legacy version of Microsoft Outlook for Mac**. The new Outlook for Mac (v16.XX+) has limited AppleScript support and will not work with this tool.
+- **For Windows Users**: This tool requires the **classic Microsoft Outlook desktop app** (part of Microsoft 365/Office 2016/2019/2021). The Microsoft Store version ("Outlook (new)") is **not supported**.
 
 ## Prerequisites
 
-- **Legacy Outlook for Mac:** This scraper is designed for the legacy version of Microsoft Outlook for Mac. The new Outlook for Mac (v16.XX+) has limited AppleScript support, so this tool will not work as expected on newer versions.
-- **Python 3.6 or higher:** This tool is compatible with Python 3.6 and above. It has been tested on Python 3.13, but should work on any recent Python 3 release.
+Before you begin, you'll need to install some basic tools. Follow the instructions for your operating system:
+
+### For macOS Users
+
+1. **Install Git**
+   - Visit [Git for macOS](https://git-scm.com/download/mac)
+   - Download and install the latest version
+   - To verify installation, open Terminal and type:
+     ```bash
+     git --version
+     ```
+
+2. **Install Python**
+   - Visit [Python for macOS](https://www.python.org/downloads/macos/)
+   - Download the latest version (3.8 or higher)
+   - Run the installer package
+   - To verify installation, open Terminal and type:
+     ```bash
+     python3 --version
+     ```
+
+3. **Install pip** (Python package manager)
+   - pip comes with Python installation
+   - To verify installation, open Terminal and type:
+     ```bash
+     pip3 --version
+     ```
+
+### For Windows Users
+
+1. **Install Git**
+   - Visit [Git for Windows](https://git-scm.com/download/win)
+   - Download and run the installer
+   - Use default settings during installation
+   - To verify installation, open Command Prompt and type:
+     ```cmd
+     git --version
+     ```
+
+2. **Install Python**
+   - Visit [Python for Windows](https://www.python.org/downloads/windows/)
+   - Download the latest version (3.8 or higher)
+   - Run the installer
+   - **Important**: Check "Add Python to PATH" during installation
+   - To verify installation, open Command Prompt and type:
+     ```cmd
+     python --version
+     ```
+
+3. **Install pip** (Python package manager)
+   - pip comes with Python installation
+   - To verify installation, open Command Prompt and type:
+     ```cmd
+     pip --version
+     ```
 
 ## Installation
 
-1. Clone this repository:
-   ```bash
-   git clone <repository-url>
-   cd <repository-directory>
-   ```
+1. **Clone the repository**
+   - Open Terminal (macOS) or Command Prompt (Windows)
+   - Navigate to where you want to install the project
+   - Run:
+     ```bash
+     git clone https://github.com/harshkpatel/ssc_data_analysis.git
+     cd ssc_data_analysis
+     ```
 
-2. Install the required Python packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
+2. **Install required packages**
+   - For macOS:
+     ```bash
+     pip3 install -r requirements.txt
+     ```
+   - For Windows:
+     ```cmd
+     pip install -r requirements.txt
+     ```
 
 ## Usage
 
-### Scraping Emails
+### For macOS Users
 
-To scrape emails from your Outlook inbox, run:
-
-```bash
-python3 macos/run_mac_scraper.py
-```
-
-This script allows you to:
-- Scrape emails from a specific date (e.g., `--date 23-05-2025`).
-- Scrape the most recent email (use `--latest`).
-- Parse a specified number of recent emails (e.g., `--count 5`).
-- Debug by listing recent emails (use `--debug`).
-- Show detailed processing information (use `--verbose`).
-
-To use any of these features, type in the original command followed by one of the features. (e.g. `python3 macos/run_mac_scraper.py --date 23-05-2025`)
-
-### Customizing the Scraper
-
-- **Account and Mailbox:** The script will prompt you to select an account and mailbox.
-- **Output File:** By default, the script saves the results to a CSV file in the `csv_files` directory. You can specify a custom output file using `--output`.
-
-## Caveats
-
-- **Legacy Outlook Required:** This tool is designed for the legacy version of Microsoft Outlook for Mac. The new Outlook for Mac (v16.XX+) has limited AppleScript support, so this tool may not work as expected on newer versions.
-- **Performance:** Scraping large inboxes can be slow. Consider limiting the number of emails processed for better performance.
-
-## Windows Usage
-
-### Requirements
-- **Classic Microsoft Outlook desktop app** (part of Microsoft 365/Office 2016/2019/2021). 
-  - The Microsoft Store version ("Outlook (new)") is **not supported**. You must use the full-featured legacy Outlook desktop app, just as the macOS version requires legacy Outlook.
-- Python 3.8+
-- All dependencies in `requirements.txt` (install with `pip install -r requirements.txt`)
-
-### Running the Windows Scraper
-
-1. **Open classic Outlook and ensure all accounts and shared mailboxes you want to access are visible in the left pane.**
-2. In your terminal, run:
-   ```sh
-   python windows/run_win_scraper.py --latest
-   # or for a specific date:
-   python windows/run_win_scraper.py --date 12-05-2025
-   # or for N most recent emails:
-   python windows/run_win_scraper.py --count 10
+1. **Run the scraper**
+   ```bash
+   python3 macos/run_mac_scraper.py [options]
    ```
-3. **Follow the prompts** to select the Outlook store (account or shared mailbox) and the mailbox (e.g., Inbox).
-4. The script will save results to the `csv_files/` directory.
 
-### Notes
-- The Windows script uses the same CSV and parsing logic as the macOS version for consistency.
-- The only major difference is that on Windows, you select the Outlook store (account or shared mailbox) first, then the mailbox (e.g., Inbox). On macOS, you select the account and mailbox directly.
-- Both platforms require the legacy/classic version of Outlook for automation.
+   Options:
+   - `--date DD-MM-YYYY`: Scrape emails from a specific date
+   - `--count N`: Get the N most recent emails
+   - `--debug`: Show recent emails in the selected mailbox
+   - `--verbose`: Show detailed processing information
 
-### Troubleshooting
-- If you do not see your shared mailbox or Inbox, ensure it is added as a full account or store in classic Outlook.
-- If you see an error about COM or "Invalid class string", you are likely using the Microsoft Store version of Outlook, which is not supported.
+2. **Example commands**
+   ```bash
+   # Get emails from yesterday
+   python3 macos/run_mac_scraper.py
+
+   # Get emails from a specific date
+   python3 macos/run_mac_scraper.py --date 01-01-2024
+
+   # Get the 5 most recent emails
+   python3 macos/run_mac_scraper.py --count 5
+   ```
+
+### For Windows Users
+
+1. **Run the scraper**
+   ```cmd
+   python windows/run_windows_scraper.py [options]
+   ```
+
+   Options:
+   - `--date DD-MM-YYYY`: Scrape emails from a specific date
+   - `--count N`: Get the N most recent emails
+   - `--debug`: Show recent emails in the selected mailbox
+   - `--verbose`: Show detailed processing information
+
+2. **Example commands**
+   ```cmd
+   # Get emails from yesterday
+   python windows/run_windows_scraper.py
+
+   # Get emails from a specific date
+   python windows/run_windows_scraper.py --date 01-01-2024
+
+   # Get the 5 most recent emails
+   python windows/run_windows_scraper.py --count 5
+   ```
+
+## Output
+
+- Emails are saved in CSV format in the `csv_files` directory
+- Files are named using the format: `account_mailbox_date.csv`
+- For count-based scraping, files are named: `account_mailbox_latest.csv`
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Python not found**
+   - Make sure Python is installed and added to PATH
+   - Try using `python3` instead of `python` on macOS
+
+2. **Git not found**
+   - Ensure Git is properly installed
+   - Restart your terminal/command prompt after installation
+
+3. **Package installation fails**
+   - Make sure you're in the correct directory
+   - Try running the command with administrator privileges
+
+4. **Outlook Version Issues**
+   - **macOS**: If you see AppleScript errors, make sure you're using the legacy version of Outlook for Mac
+   - **Windows**: If you see COM or "Invalid class string" errors, you're likely using the Microsoft Store version of Outlook
+   - Both platforms require the legacy/classic version of Outlook for automation
+
+
+## Contributing
+
+Feel free to submit issues and enhancement requests! (I'm looking at you CS Team)
 
