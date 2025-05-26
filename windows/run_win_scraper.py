@@ -28,13 +28,13 @@ from win_outlook_client import (
 def get_csv_filename(account_name: str, mailbox_name: str, date_str: str) -> str:
     """
     Create a standardized filename for the CSV file.
-    Format: account_mailbox_date.csv (with spaces replaced by underscores)
+    Format: account_mailbox_date.csv (with dashes, not underscores, and date as YYYY-MM-DD for date-based files)
     """
-    # Replace spaces with underscores in account and mailbox names
-    account_clean = account_name.replace(' ', '_')
-    mailbox_clean = mailbox_name.replace(' ', '_')
+    # Replace spaces with dashes in account and mailbox names
+    account_clean = account_name.replace(' ', '-')
+    mailbox_clean = mailbox_name.replace(' ', '-')
 
-    # If date_str is in DD-MM-YYYY format, convert to YYYY-MM-DD
+    # For date-based files, convert DD-MM-YYYY to YYYY-MM-DD
     if re.match(r'\d{2}-\d{2}-\d{4}', date_str):
         day, month, year = date_str.split('-')
         date_clean = f"{year}-{month}-{day}"
@@ -50,6 +50,39 @@ def get_csv_filename(account_name: str, mailbox_name: str, date_str: str) -> str
         os.makedirs(csv_dir)
 
     return os.path.join(csv_dir, f"{account_clean}_{mailbox_clean}_{date_clean}.csv")
+
+
+def validate_date(date_str: str) -> bool:
+    """
+    Validate that the date is not in the future and not today.
+    Returns True if date is valid, False otherwise.
+    """
+    print(f"\n[DEBUG validate_date] Received date_str: '{date_str}'")
+    try:
+        # Parse the input date
+        day, month, year = date_str.split('-')
+        print(f"[DEBUG validate_date] Parsed: Day={day}, Month={month}, Year={year}")
+        
+        target_date = datetime.datetime(int(year), int(month), int(day))
+        print(f"[DEBUG validate_date] Constructed target_date object: {target_date}")
+        
+        # Get today's date (without time)
+        today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        print(f"[DEBUG validate_date] Constructed today object: {today}")
+        
+        # Check if date is today or in the future
+        is_future_or_today = target_date >= today
+        print(f"[DEBUG validate_date] Is target_date >= today? {is_future_or_today}")
+        
+        if is_future_or_today:
+            print(f"Error: Cannot scrape emails for today ({today.strftime('%d-%m-%Y')}) or future dates.")
+            return False
+            
+        return True
+    except ValueError as e:
+        print(f"[DEBUG validate_date] Error during parsing or construction: {e}")
+        print(f"Error: Invalid date format. Please use DD-MM-YYYY format. Error: {e}")
+        return False
 
 
 def main():
@@ -150,7 +183,7 @@ def main():
             return
 
         # Set default output filename if not specified
-        output_file = args.output if args.output else get_csv_filename(selected_store, mailbox_path, "recent")
+        output_file = args.output if args.output else get_csv_filename(selected_store, mailbox_path, "latest")
 
         # Save to CSV
         save_to_csv(emails, output_file)
@@ -177,6 +210,11 @@ def main():
             yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
             target_date = yesterday.strftime("%d-%m-%Y")
             print(f"No date specified. Using yesterday: {target_date}")
+        
+        # Validate the date IMMEDIATELY
+        if not validate_date(target_date):
+            print("Date validation failed. Exiting.") # Added explicit message
+            return # Ensure exit
 
         # Set default output filename if not specified
         output_file = args.output if args.output else get_csv_filename(selected_store, mailbox_path, target_date)

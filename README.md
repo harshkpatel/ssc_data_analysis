@@ -85,6 +85,7 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
    - For Windows:
      ```cmd
      pip install -r requirements.txt
+     pip install pywin32
      ```
 
 ## Usage
@@ -118,7 +119,7 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
 
 1. **Run the scraper**
    ```cmd
-   python windows/run_windows_scraper.py [options]
+   python windows/run_win_scraper.py [options]
    ```
 
    Options:
@@ -130,13 +131,13 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
 2. **Example commands**
    ```cmd
    # Get emails from yesterday
-   python windows/run_windows_scraper.py
+   python windows/run_win_scraper.py
 
    # Get emails from a specific date
-   python windows/run_windows_scraper.py --date 01-01-2024
+   python windows/run_win_scraper.py --date 01-01-2024
 
    # Get the 5 most recent emails
-   python windows/run_windows_scraper.py --count 5
+   python windows/run_win_scraper.py --count 5
    ```
 
 ## Output
@@ -160,6 +161,7 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
 3. **Package installation fails**
    - Make sure you're in the correct directory
    - Try running the command with administrator privileges
+   - **Windows Users**: Make sure to install pywin32 after requirements: `pip install pywin32`
 
 4. **Outlook Version Issues**
    - **macOS**: If you see AppleScript errors, make sure you're using the legacy version of Outlook for Mac
