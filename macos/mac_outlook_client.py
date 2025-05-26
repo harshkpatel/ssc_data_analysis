@@ -9,9 +9,12 @@ from models.common_models import Email
 
 def clean_email_content(content: str) -> str:
     """
-    Clean email content by removing quoted/forwarded content, greetings, signatures,
-    and non-printable characters. Normalizes whitespace for better textual analysis.
+    Clean email content by removing quoted/forwarded content and Gmail security notices.
+    Keeps greetings and signatures intact.
     """
+    # Remove Gmail security notice headers
+    content = re.sub(r'You don\'t often get email from.*?Learn why this is important.*?(?=\n|$)', '', content, flags=re.DOTALL)
+    
     # Remove quoted/forwarded content
     lines = content.split('\n')
     cleaned_lines = []
@@ -31,27 +34,8 @@ def clean_email_content(content: str) -> str:
     if not cleaned_lines:
         return ''
 
-    # Remove greeting (first line if it's a greeting)
-    greetings = [
-        'hi', 'hello', 'dear', 'hey', 'greetings', 'good morning', 'good afternoon', 'good evening'
-    ]
-    if cleaned_lines[0].lower().split(',')[0] in greetings or \
-       any(cleaned_lines[0].lower().startswith(g + ' ') for g in greetings):
-        cleaned_lines = cleaned_lines[1:]
-
-    # Remove signature (lines after a signature word)
-    signature_keywords = [
-        'thanks', 'thank you', 'regards', 'best', 'cheers', 'sincerely', 'sent from my', 'yours truly', 'warm regards', 'kind regards', 'respectfully', 'with appreciation', 'with gratitude'
-    ]
-    main_body = []
-    for line in cleaned_lines:
-        # If the line is a signature keyword or starts with one, stop here
-        if any(line.lower().startswith(word) for word in signature_keywords):
-            break
-        main_body.append(line)
-    
     # Join lines and clean up extra whitespace
-    cleaned_content = '\n'.join(main_body)
+    cleaned_content = '\n'.join(cleaned_lines)
     cleaned_content = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned_content)  # Remove excessive newlines
     cleaned_content = re.sub(r'[^\x20-\x7E\n]', '', cleaned_content)  # Remove non-printable characters
     cleaned_content = re.sub(r'\s+', ' ', cleaned_content)  # Normalize whitespace
@@ -367,7 +351,8 @@ def list_emails_in_mailbox(account_name: str, mailbox_name: str, limit: int = 10
     '''
 
     result = run_applescript(script)
-    print(f"Raw AppleScript result: {result}")
+    # Debug: Print raw AppleScript result
+    # print(f"Raw AppleScript result: {result}")
     if not result:
         return []
 
@@ -382,9 +367,11 @@ def list_emails_in_mailbox(account_name: str, mailbox_name: str, limit: int = 10
         email_lines = result.split(',')  # fallback for old runs
     for line in email_lines:
         line = line.strip()
-        print(f"Parsing line: {line}")
+        # Debug: Print parsing details
+        # print(f"Parsing line: {line}")
         parts = [p.strip() for p in line.split('|')]
-        print(f"  Number of fields: {len(parts)}; Fields: {parts}")
+        # Debug: Print field details
+        # print(f"  Number of fields: {len(parts)}; Fields: {parts}")
         if len(parts) >= 3:
             subject = parts[0]
             display_date = parts[1]
@@ -555,3 +542,158 @@ def select_from_list(items: List[str], prompt: str) -> Optional[str]:
                 print("Invalid choice. Please try again.")
         except ValueError:
             print("Please enter a valid number.")
+
+
+def get_email_content(account_name: str, mailbox_name: str, msg_id: str) -> str:
+    """
+    Get just the email content without attachment information.
+    """
+    script = f'''
+    tell application "Microsoft Outlook"
+        set acct to (first exchange account whose name is "{account_name}")
+        set mb to (first mail folder of acct whose name is "{mailbox_name}")
+        set msg to (first message of mb whose id is "{msg_id}")
+        set msgContent to plain text content of msg
+        return msgContent
+    end tell
+    '''
+    
+    result = run_applescript(script)
+    if not result:
+        return ""
+    
+    # Clean the content
+    return clean_email_content(result.strip())
+
+
+def is_meeting_or_booking_email(subject: str, content: str) -> bool:
+    """
+    Check if an email is a Teams meeting or booking notification.
+    
+    Args:
+        subject: Email subject
+        content: Email content
+        
+    Returns:
+        True if the email is a meeting/booking notification, False otherwise
+    """
+    # Common patterns in Teams meeting emails
+    teams_patterns = [
+        r'Teams Meeting',
+        r'Microsoft Teams',
+        r'Teams meeting',
+        r'teams\.microsoft\.com',
+        r'Join Microsoft Teams Meeting',
+        r'Meeting Details',
+        r'Calendar Event',
+        r'Meeting Invitation'
+    ]
+    
+    # Common patterns in booking emails
+    booking_patterns = [
+        r'Booking Confirmation',
+        r'Appointment Confirmed',
+        r'Meeting Confirmation',
+        r'Calendar Invitation',
+        r'Event Details',
+        r'Meeting Details',
+        r'Invitation to',
+        r'has invited you to'
+    ]
+    
+    # Check subject and content for patterns
+    all_patterns = teams_patterns + booking_patterns
+    for pattern in all_patterns:
+        if re.search(pattern, subject, re.IGNORECASE) or re.search(pattern, content, re.IGNORECASE):
+            return True
+            
+    return False
+
+
+def get_n_most_recent_emails(account_name: str, mailbox_name: str, n: int) -> List[Email]:
+    """
+    Get the n most recent emails from a specific account and mailbox.
+
+    Args:
+        account_name: The name of the Outlook account
+        mailbox_name: The name of the mailbox to scrape
+        n: Number of most recent emails to get
+
+    Returns:
+        List of Email objects
+    """
+    script = f'''
+    tell application "Microsoft Outlook"
+        set acct to (first exchange account whose name is "{account_name}")
+        set mb to (first mail folder of acct whose name is "{mailbox_name}")
+
+        set msgs to (messages of mb)
+        if (count of msgs) is 0 then
+            return ""
+        end if
+
+        set emailList to {{}}
+        set currentCount to 0
+        repeat with msg in msgs
+            if currentCount is {n} then
+                exit repeat
+            end if
+            
+            set msgID to id of msg
+            set msgSubject to subject of msg
+            set msgContent to plain text content of msg
+            set msgTime to time received of msg
+
+            set msgYear to year of msgTime as string
+            set msgMonth to (month of msgTime as integer) as string
+            if (count of msgMonth) is 1 then set msgMonth to "0" & msgMonth
+            set msgDay to day of msgTime as string
+            if (count of msgDay) is 1 then set msgDay to "0" & msgDay
+            set dateOnly to msgYear & "-" & msgMonth & "-" & msgDay
+
+            set msgInfo to msgID & "|||DELIM|||" & msgSubject & "|||DELIM|||" & msgContent & "|||DELIM|||" & dateOnly
+            set end of emailList to msgInfo
+            set currentCount to currentCount + 1
+        end repeat
+
+        set emailText to ""
+        repeat with i from 1 to count of emailList
+            set emailText to emailText & item i of emailList
+            if i < (count of emailList) then set emailText to emailText & "|||EMAIL|||"
+        end repeat
+        return emailText
+    end tell
+    '''
+
+    result = run_applescript(script)
+    # Debug: Print raw AppleScript result
+    # print(f"Raw AppleScript result: {result}")
+    if not result:
+        print("No results returned from AppleScript")
+        return []
+
+    emails = []
+    for line in result.split('|||EMAIL|||'):
+        if "|||DELIM|||" in line:
+            parts = line.split("|||DELIM|||", 3)
+            if len(parts) >= 4:
+                msg_id = parts[0].strip()
+                subject = parts[1].strip()
+                content = parts[2].strip()
+                received = parts[3].strip()
+                
+                # Skip meeting/booking emails
+                if is_meeting_or_booking_email(subject, content):
+                    continue
+                
+                # Clean the content
+                cleaned_content = clean_email_content(content)
+                
+                email = Email(
+                    subject=subject,
+                    content=cleaned_content,
+                    received=received
+                )
+                emails.append(email)
+
+    return emails

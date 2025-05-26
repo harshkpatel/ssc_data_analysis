@@ -4,7 +4,7 @@ This tool allows you to scrape emails from Microsoft Outlook on macOS using Appl
 
 ## Prerequisites
 
-- **Legacy Outlook for Mac:** This scraper is designed for the legacy version of Microsoft Outlook for Mac. The new Outlook for Mac (v16.XX+) has limited AppleScript support, so this tool may not work as expected on newer versions.
+- **Legacy Outlook for Mac:** This scraper is designed for the legacy version of Microsoft Outlook for Mac. The new Outlook for Mac (v16.XX+) has limited AppleScript support, so this tool will not work as expected on newer versions.
 - **Python 3.6 or higher:** This tool is compatible with Python 3.6 and above. It has been tested on Python 3.13, but should work on any recent Python 3 release.
 
 ## Installation
