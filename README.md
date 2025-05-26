@@ -101,7 +101,6 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
    - `--date DD-MM-YYYY`: Scrape emails from a specific date
    - `--count N`: Get the N most recent emails
    - `--debug`: Show recent emails in the selected mailbox
-   - `--verbose`: Show detailed processing information
 
 2. **Example commands**
    ```bash
@@ -126,7 +125,6 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
    - `--date DD-MM-YYYY`: Scrape emails from a specific date
    - `--count N`: Get the N most recent emails
    - `--debug`: Show recent emails in the selected mailbox
-   - `--verbose`: Show detailed processing information
 
 2. **Example commands**
    ```cmd
