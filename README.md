@@ -8,87 +8,35 @@ This project helps analyze emails from Microsoft Outlook by scraping and process
 - **For macOS Users**: This tool requires the **legacy version of Microsoft Outlook for Mac**. The new Outlook for Mac (v16.XX+) has limited AppleScript support and will not work with this tool.
 - **For Windows Users**: This tool requires the **classic Microsoft Outlook desktop app** (part of Microsoft 365/Office 2016/2019/2021). The Microsoft Store version ("Outlook (new)") is **not supported**.
 
-## Prerequisites
-
-Before you begin, you'll need to install some basic tools. Follow the instructions for your operating system:
+## Quick Start
 
 ### For macOS Users
 
-1. **Install Git**
-   - Visit [Git for macOS](https://git-scm.com/download/mac)
-   - Download and install the latest version
-   - To verify installation, open Terminal and type:
-     ```bash
-     git --version
-     ```
-
-2. **Install Python**
+1. **Install Python**
    - Visit [Python for macOS](https://www.python.org/downloads/macos/)
-   - Download the latest version (3.8 or higher)
+   - Download and install the latest version (3.8 or higher)
    - Run the installer package
-   - To verify installation, open Terminal and type:
-     ```bash
-     python3 --version
-     ```
 
-3. **Install pip** (Python package manager)
-   - pip comes with Python installation
-   - To verify installation, open Terminal and type:
+2. **Install required packages**
+   - Open Terminal
+   - Run these commands:
      ```bash
-     pip3 --version
+     pip install emoji
      ```
 
 ### For Windows Users
 
-1. **Install Git**
-   - Visit [Git for Windows](https://git-scm.com/download/win)
-   - Download and run the installer
-   - Use default settings during installation
-   - To verify installation, open Command Prompt and type:
-     ```cmd
-     git --version
-     ```
-
-2. **Install Python**
+1. **Install Python**
    - Visit [Python for Windows](https://www.python.org/downloads/windows/)
    - Download the latest version (3.8 or higher)
    - Run the installer
    - **Important**: Check "Add Python to PATH" during installation
-   - To verify installation, open Command Prompt and type:
-     ```cmd
-     python --version
-     ```
-
-3. **Install pip** (Python package manager)
-   - pip comes with Python installation
-   - To verify installation, open Command Prompt and type:
-     ```cmd
-     pip --version
-     ```
-
-## Installation
-
-1. **Clone the repository**
-   - Open Terminal (macOS) or Command Prompt (Windows)
-   - Navigate to where you want to install the project
-   - Run:
-     ```bash
-      git clone https://github.com/harshkpatel/ssc_data_analysis.git
-     ```
-     ```bash
-     cd ssc_data_analysis
-     ```
 
 2. **Install required packages**
-   - For macOS:
-     ```bash
-     pip3 install -r requirements.txt
-     ```
-   - For Windows:
+   - Open Command Prompt
+   - Run these commands:
      ```cmd
-     pip install -r requirements.txt
-     ```
-     ```bash
+     pip install emoji
      pip install pywin32
      ```
 
@@ -182,20 +130,15 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
    - Make sure Python is installed and added to PATH
    - Try using `python3` instead of `python` on macOS
 
-2. **Git not found**
-   - Ensure Git is properly installed
-   - Restart your terminal/command prompt after installation
-
-3. **Package installation fails**
+2. **Package installation fails**
    - Make sure you're in the correct directory
    - Try running the command with administrator privileges
-   - **Windows Users**: Make sure to install pywin32 after requirements: `pip install pywin32`
+   - **Windows Users**: Make sure to install pywin32 after other packages: `pip install pywin32`
 
-4. **Outlook Version Issues**
+3. **Outlook Version Issues**
    - **macOS**: If you see AppleScript errors, make sure you're using the legacy version of Outlook for Mac
    - **Windows**: If you see COM or "Invalid class string" errors, you're likely using the Microsoft Store version of Outlook
    - Both platforms require the legacy/classic version of Outlook for automation
-
 
 ## Contributing
 

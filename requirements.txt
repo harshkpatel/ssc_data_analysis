@@ -1,8 +1,0 @@
-# Basic requirements for email scraping functionality
-# Most scraping functionality uses built-in Python libraries
-# This file contains minimal dependencies for basic users
-
-# Note: Windows users will need to install pywin32 separately:
-# pip install pywin32 
-
-emoji 
