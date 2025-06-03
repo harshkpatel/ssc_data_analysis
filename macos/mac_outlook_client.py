@@ -2,9 +2,42 @@
 import subprocess
 import re
 import html
+import emoji
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from models.common_models import Email
+
+
+def remove_emojis(text):
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # emoticons
+        "\U0001F300-\U0001F5FF"  # symbols & pictographs
+        "\U0001F680-\U0001F6FF"  # transport & map symbols
+        "\U0001F1E0-\U0001F1FF"  # flags
+        "\U00002500-\U00002BEF"  # chinese char
+        "\U00002702-\U000027B0"
+        "\U00002702-\U000027B0"
+        "\U000024C2-\U0001F251"
+        "\U0001f926-\U0001f937"
+        "\U00010000-\U0010ffff"
+        "\u2640-\u2642"
+        "\u2600-\u2B55"
+        "\u200d"
+        "\u23cf"
+        "\u23e9"
+        "\u231a"
+        "\ufe0f"  # dingbats
+        "\u3030"
+        "]+", flags=re.UNICODE)
+    return emoji_pattern.sub(r'', text)
+
+
+def clean_email_subject(subject: str) -> str:
+    # Remove emojis and excessive whitespace from subject
+    subject = remove_emojis(subject)
+    subject = re.sub(r'\s+', ' ', subject)
+    return subject.strip()
 
 
 def clean_email_content(content: str) -> str:
@@ -38,6 +71,7 @@ def clean_email_content(content: str) -> str:
     cleaned_content = '\n'.join(cleaned_lines)
     cleaned_content = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned_content)  # Remove excessive newlines
     cleaned_content = re.sub(r'[^\x20-\x7E\n]', '', cleaned_content)  # Remove non-printable characters
+    cleaned_content = remove_emojis(cleaned_content)
     cleaned_content = re.sub(r'\s+', ' ', cleaned_content)  # Normalize whitespace
     return cleaned_content.strip()
 

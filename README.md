@@ -101,21 +101,40 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
    python3 macos/run_mac_scraper.py [options]
    ```
 
-   Options:
-   - `--date DD-MM-YYYY`: Scrape emails from a specific date
-   - `--count N`: Get the N most recent emails
+   **Default behavior (no options):**
+   - You will be prompted to select an Outlook account.
+   - The script will automatically scrape all emails from these three mailboxes for that account **for yesterday only**:
+     - Inbox/Awaiting Information
+     - Inbox/Referral Made
+     - Inbox/Resolved
+   - Only emails from yesterday are added to the local SQLite database (`emails.db`).
+   - Duplicate emails (same subject, content, and received date) are automatically ignored.
+
+   **Options:**
+   - `--date DD-MM-YYYY`: Scrape emails from a specific date (you will select a mailbox)
+   - `--count N`: Get the N most recent emails (you will select a mailbox)
    - `--debug`: Show recent emails in the selected mailbox
 
-2. **Example commands**
+2. **Export emails to CSV**
+   - Use the `get_emails.py` script to export emails from the database to CSV.
+   - **Default behavior (no options):** Only emails from yesterday are exported.
+   - Use `--all` to export all emails in the database up to yesterday.
+
+   **Options:**
+   - `--date DD-MM-YYYY`: Export emails from a specific date
+   - `--all`: Export all emails in the database up to yesterday
+   - `--account FirstName`: Use your first name in the CSV filename (otherwise you will be prompted)
+
+   **Example commands:**
    ```bash
-   # Get emails from yesterday
-   python3 macos/run_mac_scraper.py
+   # Export emails from yesterday (will prompt for your first name)
+   python3 get_emails.py
 
-   # Get emails from a specific date
-   python3 macos/run_mac_scraper.py --date 01-01-2024
+   # Export all emails up to yesterday, using your name in the filename
+   python3 get_emails.py --all --account Harsh
 
-   # Get the 5 most recent emails
-   python3 macos/run_mac_scraper.py --count 5
+   # Export emails from a specific date
+   python3 get_emails.py --date 31-05-2025 --account Harsh
    ```
 
 ### For Windows Users
@@ -144,9 +163,16 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
 
 ## Output
 
-- Emails are saved in CSV format in the `csv_files` directory
-- Files are named using the format: `account_mailbox--submailbox_date.csv` (slashes in folder paths become double dashes)
-- For count-based scraping, files are named: `account_mailbox--submailbox_latest.csv`
+- **Default mode (no options):**
+  - Emails from yesterday are stored in a local SQLite database (`emails.db`) in the project directory.
+  - Each email is uniquely identified by its subject, content, and received date (deduplication is automatic).
+- **With get_emails.py:**
+  - Emails are saved in CSV format in the `csv_files` directory
+  - Files are named using the format: `FirstName_dd-mm-yyyy.csv` for a specific date (or for yesterday, if no date is given), or `FirstName_all.csv` for all emails
+- **With --date or --count in run_mac_scraper.py:**
+  - Emails are saved in CSV format in the `csv_files` directory
+  - Files are named using the format: `account_mailbox--submailbox_date.csv` (slashes in folder paths become double dashes)
+  - For count-based scraping, files are named: `account_mailbox--submailbox_latest.csv`
 
 ## Troubleshooting
 

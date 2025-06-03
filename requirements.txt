@@ -4,3 +4,5 @@
 
 # Note: Windows users will need to install pywin32 separately:
 # pip install pywin32 
+
+emoji 
