@@ -28,11 +28,20 @@ from win_outlook_client import (
 def get_csv_filename(account_name: str, mailbox_name: str, date_str: str) -> str:
     """
     Create a standardized filename for the CSV file.
-    Format: account_mailbox_date.csv (with dashes, not underscores, and date as YYYY-MM-DD for date-based files)
+    Format: account_mailbox--submailbox_date.csv (with slashes replaced by double dashes)
+    Files saved in csv_files directory
     """
-    # Replace spaces with dashes in account and mailbox names
+    # Replace spaces with dashes in account name and slashes with double dashes in mailbox name
     account_clean = account_name.replace(' ', '-')
-    mailbox_clean = mailbox_name.replace(' ', '-')
+    mailbox_clean = mailbox_name.replace(' ', '-').replace('/', '--')
+
+    # Get the absolute path to the csv_files directory
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    csv_dir = os.path.join(project_root, 'csv_files')
+    
+    # Ensure the directory exists
+    if not os.path.exists(csv_dir):
+        os.makedirs(csv_dir)
 
     # For date-based files, convert DD-MM-YYYY to YYYY-MM-DD
     if re.match(r'\d{2}-\d{2}-\d{4}', date_str):
@@ -40,14 +49,6 @@ def get_csv_filename(account_name: str, mailbox_name: str, date_str: str) -> str
         date_clean = f"{year}-{month}-{day}"
     else:
         date_clean = date_str
-
-    # Get the absolute path to the global csv_files folder
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    csv_dir = os.path.join(project_root, 'csv_files')
-    
-    # Ensure the directory exists
-    if not os.path.exists(csv_dir):
-        os.makedirs(csv_dir)
 
     return os.path.join(csv_dir, f"{account_clean}_{mailbox_clean}_{date_clean}.csv")
 

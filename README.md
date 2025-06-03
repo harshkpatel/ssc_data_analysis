@@ -73,7 +73,9 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
    - Navigate to where you want to install the project
    - Run:
      ```bash
-     git clone https://github.com/harshkpatel/ssc_data_analysis.git
+      git clone https://github.com/harshkpatel/ssc_data_analysis.git
+     ```
+     ```bash
      cd ssc_data_analysis
      ```
 
@@ -85,6 +87,8 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
    - For Windows:
      ```cmd
      pip install -r requirements.txt
+     ```
+     ```bash
      pip install pywin32
      ```
 
@@ -141,8 +145,8 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
 ## Output
 
 - Emails are saved in CSV format in the `csv_files` directory
-- Files are named using the format: `account_mailbox_date.csv`
-- For count-based scraping, files are named: `account_mailbox_latest.csv`
+- Files are named using the format: `account_mailbox--submailbox_date.csv` (slashes in folder paths become double dashes)
+- For count-based scraping, files are named: `account_mailbox--submailbox_latest.csv`
 
 ## Troubleshooting
 
@@ -169,5 +173,5 @@ Before you begin, you'll need to install some basic tools. Follow the instructio
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests! (I'm looking at you CS Team)
+Feel free to submit issues and enhancement requests!
 

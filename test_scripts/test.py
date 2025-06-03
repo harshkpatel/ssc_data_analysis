@@ -19,9 +19,18 @@ from mac_outlook_client import (
 
 def get_csv_filename(mailbox_name: str, suffix: str = "latest") -> str:
     """Create a standardized filename for the CSV file."""
-    # Replace spaces with underscores in mailbox name
-    mailbox_clean = mailbox_name.replace(' ', '_')
-    return f"csv_files/{mailbox_clean}_{suffix}.csv"
+    # Replace spaces with dashes and slashes with double dashes in mailbox name
+    mailbox_clean = mailbox_name.replace(' ', '-').replace('/', '--')
+    
+    # Get the absolute path to the csv_files directory
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    csv_dir = os.path.join(project_root, 'csv_files')
+    
+    # Ensure the directory exists
+    if not os.path.exists(csv_dir):
+        os.makedirs(csv_dir)
+    
+    return os.path.join(csv_dir, f"{mailbox_clean}_{suffix}.csv")
 
 
 def main():

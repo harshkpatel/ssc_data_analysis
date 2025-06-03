@@ -49,31 +49,23 @@ def validate_date(date_str: str) -> bool:
 def get_csv_filename(account_name: str, mailbox_name: str, date_str: str) -> str:
     """
     Create a standardized filename for the CSV file.
-    Format: account_mailbox_date.csv (with spaces replaced by underscores)
-    For latest/count: account_mailbox_latest.csv in csv_files folder
-    For testing: latest.py in test_scraping_data folder
+    Format: account_mailbox--submailbox_date.csv (with slashes replaced by double dashes)
+    Files saved in csv_files directory
     """
-    # Replace spaces with underscores in account and mailbox names
+    # Replace spaces with dashes in account name and slashes with double dashes in mailbox name
     account_clean = account_name.replace(' ', '-')
-    mailbox_clean = mailbox_name.replace(' ', '-')
+    mailbox_clean = mailbox_name.replace(' ', '-').replace('/', '--')
 
-    # Get the absolute path to the project root
+    # Get the absolute path to the csv_files directory
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    
-    # For testing (latest.py)
-    if date_str == "test_latest":
-        test_dir = os.path.join(project_root, 'test_scraping_data')
-        if not os.path.exists(test_dir):
-            os.makedirs(test_dir)
-        return os.path.join(test_dir, "latest.py")
-
-    # For latest/count files, use csv_files folder
     csv_dir = os.path.join(project_root, 'csv_files')
+    
+    # Ensure the directory exists
     if not os.path.exists(csv_dir):
         os.makedirs(csv_dir)
 
     # For latest/count files
-    if date_str in ["latest", "count"]:
+    if date_str in ["latest", "count", "test_latest"]:
         return os.path.join(csv_dir, f"{account_clean}_{mailbox_clean}_latest.csv")
 
     # For date-based files, convert DD-MM-YYYY to YYYY-MM-DD

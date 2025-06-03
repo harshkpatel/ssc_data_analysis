@@ -42,6 +42,30 @@ def clean_email_content(content: str) -> str:
     return cleaned_content.strip()
 
 
+def get_folder_navigation_applescript(mailbox_path: str) -> str:
+    """
+    Generate AppleScript code to navigate to a folder path like 'Inbox/Subfolder'.
+    Returns the AppleScript code that sets 'mb' to the target folder.
+    """
+    if '/' not in mailbox_path:
+        # Simple case: top-level folder
+        return f'set mb to (first mail folder of acct whose name is "{mailbox_path}")'
+    
+    # Complex case: navigate path step by step
+    path_parts = mailbox_path.split('/')
+    script_lines = []
+    
+    # Start with the top-level folder
+    script_lines.append(f'set mb to (first mail folder of acct whose name is "{path_parts[0]}")')
+    
+    # Navigate through each subfolder
+    for i in range(1, len(path_parts)):
+        subfolder_name = path_parts[i]
+        script_lines.append(f'set mb to (first mail folder of mb whose name is "{subfolder_name}")')
+    
+    return '\n        '.join(script_lines)
+
+
 def run_applescript(script: str) -> str:
     """Execute AppleScript and return the result."""
     process = subprocess.Popen(
@@ -112,37 +136,9 @@ def get_mailboxes_for_account(account_name: str) -> List[str]:
     # 3. The main 'tell application "Microsoft Outlook"' block calls this top-level handler.
     # This structure is often more robust with 'osascript -e'.
     script = f'''
-    on processMailFolder(theFolder, indentPrefix, masterList)
-        try
-            -- Since 'theFolder' is an Outlook object, operations on it need Outlook's context.
-            tell application "Microsoft Outlook"
-                set end of masterList to indentPrefix & (name of theFolder)
-                
-                set subFolders to mail folders of theFolder
-                set nextIndentPrefix to indentPrefix & "  ↳ " -- Indentation for the next level
-                repeat with aSubFolder in subFolders
-                    my processMailFolder(aSubFolder, nextIndentPrefix, masterList)
-                end repeat
-            end tell
-        on error errMsg number errNum
-            -- Removed 'log' command as it can be problematic with osascript -e.
-            -- The error will be implicitly handled by the overall script's try-catch or by returning an error marker.
-            -- For debugging, you might add: return "HANDLER_ERROR: " & errMsg
-            -- For now, add a placeholder to the list indicating an issue with this folder.
-            try
-                tell application "Microsoft Outlook"
-                    set folderName to name of theFolder
-                end tell
-            on error
-                set folderName to "unknown folder"
-            end try
-            set end of masterList to indentPrefix & "Error accessing subfolders for '" & folderName & "'"
-        end try
-    end processMailFolder
-
     tell application "Microsoft Outlook"
-        set actualMasterMailboxList to {{}} -- Use a distinct name for the list variable
-        set localEscapedAccountName to "{escaped_account_name}" -- Store substituted account name
+        set actualMasterMailboxList to {{}}
+        set localEscapedAccountName to "{escaped_account_name}"
 
         try
             set targetAccount to missing value
@@ -184,7 +180,20 @@ def get_mailboxes_for_account(account_name: str) -> List[str]:
             
             set topLevelFolders to mail folders of targetAccount
             repeat with aTopFolder in topLevelFolders
-                my processMailFolder(aTopFolder, "", actualMasterMailboxList)
+                set topName to name of aTopFolder
+                set end of actualMasterMailboxList to topName
+                try
+                    set subFolderCount to count of mail folders of aTopFolder
+                    if subFolderCount > 0 then
+                        repeat with i from 1 to subFolderCount
+                            set aSubFolder to mail folder i of aTopFolder
+                            set subName to name of aSubFolder
+                            set end of actualMasterMailboxList to topName & "/" & subName
+                        end repeat
+                    end if
+                on error errMsg number errNum
+                    set end of actualMasterMailboxList to "DEBUG_ERROR_" & topName & ": " & errMsg
+                end try
             end repeat
             
             set oldDelimiters to AppleScript's text item delimiters
@@ -205,8 +214,6 @@ def get_mailboxes_for_account(account_name: str) -> List[str]:
         print(f"Error retrieving mailboxes for account '{account_name}': {result}")
         return []
 
-    # Mailbox names are separated by newlines in the result string.
-    # Python's split('\n') should handle this correctly.
     mailboxes = [mailbox.strip() for mailbox in result.split('\n') if mailbox.strip()]
     
     return mailboxes
@@ -237,7 +244,7 @@ def get_emails_from_date(account_name: str, mailbox_name: str, target_date: str)
     tell application "Microsoft Outlook"
         set allData to {{}}
         set acct to (first exchange account whose name is "{account_name}")
-        set mb to (first mail folder of acct whose name is "{mailbox_name}")
+        {get_folder_navigation_applescript(mailbox_name)}
 
         set allMsgs to messages of mb
 
@@ -385,7 +392,7 @@ def get_emails_from_date(account_name: str, mailbox_name: str, target_date: str)
         script = f'''
         tell application "Microsoft Outlook"
             set acct to (first exchange account whose name is "{account_name}")
-            set mb to (first mail folder of acct whose name is "{mailbox_name}")
+            {get_folder_navigation_applescript(mailbox_name)}
             set msg to (first message of mb whose id is "{msg_id}")
 
             set msgSubject to subject of msg
@@ -425,7 +432,7 @@ def list_emails_in_mailbox(account_name: str, mailbox_name: str, limit: int = 10
     tell application "Microsoft Outlook"
         set emailList to {{}}
         set acct to (first exchange account whose name is "{account_name}")
-        set mb to (first mail folder of acct whose name is "{mailbox_name}")
+        {get_folder_navigation_applescript(mailbox_name)}
 
         set allMsgs to messages of mb
         set msgCount to count of allMsgs
@@ -502,7 +509,7 @@ def get_email_with_attachments(account_name: str, mailbox_name: str, msg_id: str
     script = f'''
     tell application "Microsoft Outlook"
         set acct to (first exchange account whose name is "{account_name}")
-        set mb to (first mail folder of acct whose name is "{mailbox_name}")
+        {get_folder_navigation_applescript(mailbox_name)}
         set msg to (first message of mb whose id is "{msg_id}")
 
         set msgContent to plain text content of msg
@@ -577,7 +584,7 @@ def get_most_recent_email(account_name: str, mailbox_name: str) -> Optional[Emai
     script = f'''
     tell application "Microsoft Outlook"
         set acct to (first exchange account whose name is "{account_name}")
-        set mb to (first mail folder of acct whose name is "{mailbox_name}")
+        {get_folder_navigation_applescript(mailbox_name)}
 
         set msgs to (messages of mb)
         if (count of msgs) is 0 then
@@ -660,7 +667,7 @@ def get_email_content(account_name: str, mailbox_name: str, msg_id: str) -> str:
     script = f'''
     tell application "Microsoft Outlook"
         set acct to (first exchange account whose name is "{account_name}")
-        set mb to (first mail folder of acct whose name is "{mailbox_name}")
+        {get_folder_navigation_applescript(mailbox_name)}
         set msg to (first message of mb whose id is "{msg_id}")
         set msgContent to plain text content of msg
         return msgContent
@@ -734,7 +741,7 @@ def get_n_most_recent_emails(account_name: str, mailbox_name: str, n: int) -> Li
     script = f'''
     tell application "Microsoft Outlook"
         set acct to (first exchange account whose name is "{account_name}")
-        set mb to (first mail folder of acct whose name is "{mailbox_name}")
+        {get_folder_navigation_applescript(mailbox_name)}
 
         set msgs to (messages of mb)
         if (count of msgs) is 0 then
