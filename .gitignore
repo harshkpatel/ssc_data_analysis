@@ -1,5 +1,6 @@
 *.pyc
 __pycache__/
 csv_files/*.csv
+!csv_files/sample_student_emails.csv
 *.db
 python-installer.exe
