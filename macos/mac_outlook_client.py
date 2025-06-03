@@ -47,13 +47,16 @@ def run_applescript(script: str) -> str:
     process = subprocess.Popen(
         ['osascript', '-e', script],
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
+        stderr=subprocess.PIPE,
+        text=True # Decode stdout/stderr as text
     )
     stdout, stderr = process.communicate()
     if process.returncode != 0:
-        print(f"Error running AppleScript: {stderr.decode('utf-8')}")
-        return ""
-    return stdout.decode('utf-8').strip()
+        # Print a more detailed error message, including the script that failed for easier debugging
+        # print(f"--- Failing AppleScript ---\n{script}\n--------------------------")
+        print(f"Error running AppleScript (return code {process.returncode}):\nSTDERR: {stderr.strip()}")
+        return f"OSASCRIPT_ERROR: {stderr.strip()}"
+    return stdout.strip()
 
 
 def get_outlook_accounts() -> List[str]:
@@ -61,45 +64,151 @@ def get_outlook_accounts() -> List[str]:
     script = '''
     tell application "Microsoft Outlook"
         set accountList to {}
-        repeat with acct in exchange accounts
-            set end of accountList to name of acct
-        end repeat
-        repeat with acct in pop accounts
-            set end of accountList to name of acct
-        end repeat
-        repeat with acct in IMAP accounts
-            set end of accountList to name of acct
-        end repeat
+        try
+            repeat with acct in exchange accounts
+                set end of accountList to name of acct
+            end repeat
+        on error errMsg number errNum
+            -- Using log can be problematic with osascript -e if not handled well,
+            -- returning an error string might be better for Python to catch.
+            -- log "No Exchange accounts or error: " & errMsg 
+        end try
+        try
+            repeat with acct in pop accounts
+                set end of accountList to name of acct
+            end repeat
+        on error errMsg number errNum
+            -- log "No POP accounts or error: " & errMsg
+        end try
+        try
+            repeat with acct in imap accounts
+                set end of accountList to name of acct
+            end repeat
+        on error errMsg number errNum
+            -- log "No IMAP accounts or error: " & errMsg
+        end try
         return accountList
     end tell
     '''
     result = run_applescript(script)
-    if not result:
+    if not result or result.startswith("OSASCRIPT_ERROR:") or result.startswith("APPLE_SCRIPT_ERROR:"):
+        print(f"Failed to get Outlook accounts: {result}")
         return []
 
-    # Parse the comma-separated list
-    accounts = [account.strip() for account in result.split(',')]
+    accounts = [account.strip() for account in result.split(',') if account.strip()]
     return accounts
 
 
 def get_mailboxes_for_account(account_name: str) -> List[str]:
-    """Get all mailboxes for a specific account."""
+    """
+    Get all mailboxes and sub-mailboxes for a specific Outlook account,
+    with sub-mailboxes indented.
+    """
+    escaped_account_name = account_name.replace('"', '\\"')
+
+    # AppleScript is restructured:
+    # 1. The 'processMailFolder' handler is defined at the top level (outside any 'tell application' block).
+    # 2. The handler explicitly uses 'tell application "Microsoft Outlook"' for Outlook-specific commands.
+    # 3. The main 'tell application "Microsoft Outlook"' block calls this top-level handler.
+    # This structure is often more robust with 'osascript -e'.
     script = f'''
+    on processMailFolder(theFolder, indentPrefix, masterList)
+        try
+            -- Since 'theFolder' is an Outlook object, operations on it need Outlook's context.
+            tell application "Microsoft Outlook"
+                set end of masterList to indentPrefix & (name of theFolder)
+                
+                set subFolders to mail folders of theFolder
+                set nextIndentPrefix to indentPrefix & "  ↳ " -- Indentation for the next level
+                repeat with aSubFolder in subFolders
+                    my processMailFolder(aSubFolder, nextIndentPrefix, masterList)
+                end repeat
+            end tell
+        on error errMsg number errNum
+            -- Removed 'log' command as it can be problematic with osascript -e.
+            -- The error will be implicitly handled by the overall script's try-catch or by returning an error marker.
+            -- For debugging, you might add: return "HANDLER_ERROR: " & errMsg
+            -- For now, add a placeholder to the list indicating an issue with this folder.
+            try
+                tell application "Microsoft Outlook"
+                    set folderName to name of theFolder
+                end tell
+            on error
+                set folderName to "unknown folder"
+            end try
+            set end of masterList to indentPrefix & "Error accessing subfolders for '" & folderName & "'"
+        end try
+    end processMailFolder
+
     tell application "Microsoft Outlook"
-        set mailboxList to {{}}
-        set acct to (first exchange account whose name is "{account_name}")
-        repeat with mb in mail folders of acct
-            set end of mailboxList to name of mb
-        end repeat
-        return mailboxList
+        set actualMasterMailboxList to {{}} -- Use a distinct name for the list variable
+        set localEscapedAccountName to "{escaped_account_name}" -- Store substituted account name
+
+        try
+            set targetAccount to missing value
+            set accountFound to false
+
+            if (count of exchange accounts) > 0 then
+                repeat with anAccount in exchange accounts
+                    if name of anAccount is localEscapedAccountName then
+                        set targetAccount to anAccount
+                        set accountFound to true
+                        exit repeat
+                    end if
+                end repeat
+            end if
+
+            if not accountFound and (count of imap accounts) > 0 then
+                repeat with anAccount in imap accounts
+                    if name of anAccount is localEscapedAccountName then
+                        set targetAccount to anAccount
+                        set accountFound to true
+                        exit repeat
+                    end if
+                end repeat
+            end if
+
+            if not accountFound and (count of pop accounts) > 0 then
+                repeat with anAccount in pop accounts
+                    if name of anAccount is localEscapedAccountName then
+                        set targetAccount to anAccount
+                        set accountFound to true
+                        exit repeat
+                    end if
+                end repeat
+            end if
+
+            if targetAccount is missing value then
+                return "APPLE_SCRIPT_ERROR: Account named '" & localEscapedAccountName & "' not found."
+            end if
+            
+            set topLevelFolders to mail folders of targetAccount
+            repeat with aTopFolder in topLevelFolders
+                my processMailFolder(aTopFolder, "", actualMasterMailboxList)
+            end repeat
+            
+            set oldDelimiters to AppleScript's text item delimiters
+            set AppleScript's text item delimiters to linefeed
+            set resultString to actualMasterMailboxList as text
+            set AppleScript's text item delimiters to oldDelimiters
+            return resultString
+            
+        on error errMsg number errNum
+            return "APPLE_SCRIPT_ERROR: Main block for account '" & localEscapedAccountName & "': " & errMsg & " (Number: " & errNum & ")"
+        end try
     end tell
     '''
+    
     result = run_applescript(script)
-    if not result:
+    
+    if not result or result.startswith("OSASCRIPT_ERROR:") or result.startswith("APPLE_SCRIPT_ERROR:"):
+        print(f"Error retrieving mailboxes for account '{account_name}': {result}")
         return []
 
-    # Parse the comma-separated list
-    mailboxes = [mailbox.strip() for mailbox in result.split(',')]
+    # Mailbox names are separated by newlines in the result string.
+    # Python's split('\n') should handle this correctly.
+    mailboxes = [mailbox.strip() for mailbox in result.split('\n') if mailbox.strip()]
+    
     return mailboxes
 
 
