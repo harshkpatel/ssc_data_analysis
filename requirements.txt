@@ -1,7 +1,6 @@
-pandas>=1.3.0
-numpy>=1.20.0
-nltk>=3.6.0
-textblob>=0.15.3
-rake-nltk>=1.0.4
-gensim>=4.0.0
-scikit-learn>=0.24.0 
+# Basic requirements for email scraping functionality
+# Most scraping functionality uses built-in Python libraries
+# This file contains minimal dependencies for basic users
+
+# Note: Windows users will need to install pywin32 separately:
+# pip install pywin32 
