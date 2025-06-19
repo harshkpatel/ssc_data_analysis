@@ -2,78 +2,40 @@
 import subprocess
 import re
 import html
-import emoji
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from models.common_models import Email
-
-
-def remove_emojis(text):
-    emoji_pattern = re.compile(
-        "["
-        "\U0001F600-\U0001F64F"  # emoticons
-        "\U0001F300-\U0001F5FF"  # symbols & pictographs
-        "\U0001F680-\U0001F6FF"  # transport & map symbols
-        "\U0001F1E0-\U0001F1FF"  # flags
-        "\U00002500-\U00002BEF"  # chinese char
-        "\U00002702-\U000027B0"
-        "\U00002702-\U000027B0"
-        "\U000024C2-\U0001F251"
-        "\U0001f926-\U0001f937"
-        "\U00010000-\U0010ffff"
-        "\u2640-\u2642"
-        "\u2600-\u2B55"
-        "\u200d"
-        "\u23cf"
-        "\u23e9"
-        "\u231a"
-        "\ufe0f"  # dingbats
-        "\u3030"
-        "]+", flags=re.UNICODE)
-    return emoji_pattern.sub(r'', text)
-
+from email.parser import BytesParser
+from email.policy import default
+from mailparser_reply import EmailReplyParser
 
 def clean_email_subject(subject: str) -> str:
-    # Remove emojis and excessive whitespace from subject
-    subject = remove_emojis(subject)
-    subject = re.sub(r'\s+', ' ', subject)
+    """Clean email subject by removing extra whitespace."""
+    if not subject:
+        return ""
     return subject.strip()
 
 
-def clean_email_content(content: str) -> str:
-    """
-    Clean email content by removing quoted/forwarded content and Gmail security notices.
-    Keeps greetings and signatures intact.
-    """
-    # Remove Gmail security notice headers
-    content = re.sub(r'You don\'t often get email from.*?Learn why this is important.*?(?=\n|$)', '', content, flags=re.DOTALL)
-    
-    # Remove quoted/forwarded content
-    lines = content.split('\n')
-    cleaned_lines = []
-    in_quoted_content = False
-    for line in lines:
-        if re.match(r'On .*wrote:', line.strip()) or \
-           re.match(r'From:.*Sent:.*', line.strip()) or \
-           re.match(r'^>.*', line.strip()):
-            in_quoted_content = True
-            continue
-        if in_quoted_content:
-            continue
-        cleaned_lines.append(line)
-    
-    # Remove leading/trailing whitespace and empty lines
-    cleaned_lines = [l.strip() for l in cleaned_lines if l.strip()]
-    if not cleaned_lines:
-        return ''
+def clean_email_content(content: str, subject: str = None) -> str:
+    if not content:
+        return ""
 
-    # Join lines and clean up extra whitespace
-    cleaned_content = '\n'.join(cleaned_lines)
-    cleaned_content = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned_content)  # Remove excessive newlines
-    cleaned_content = re.sub(r'[^\x20-\x7E\n]', '', cleaned_content)  # Remove non-printable characters
-    cleaned_content = remove_emojis(cleaned_content)
-    cleaned_content = re.sub(r'\s+', ' ', cleaned_content)  # Normalize whitespace
-    return cleaned_content.strip()
+    # If subject indicates it's a reply, be more aggressive about cleaning
+    is_reply = subject and re.match(r'^(re:|fwd?:|fw:)', subject.lower().strip())
+
+    if is_reply:
+        # Use library for reply parsing
+        parsed = EmailReplyParser(['en', 'de', 'zh', 'ko']).read(content)
+        return parsed.text.strip()
+    else:
+        # For original emails, just clean HTML
+        cleaned = re.sub(r'<[^>]+>', '', content)
+        cleaned = re.sub(r'&nbsp;', ' ', cleaned)
+        cleaned = re.sub(r'&amp;', '&', cleaned)
+        cleaned = re.sub(r'&lt;', '<', cleaned)
+        cleaned = re.sub(r'&gt;', '>', cleaned)
+        cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+        return cleaned.strip()
 
 
 def get_folder_navigation_applescript(mailbox_path: str) -> str:
@@ -84,19 +46,19 @@ def get_folder_navigation_applescript(mailbox_path: str) -> str:
     if '/' not in mailbox_path:
         # Simple case: top-level folder
         return f'set mb to (first mail folder of acct whose name is "{mailbox_path}")'
-    
+
     # Complex case: navigate path step by step
     path_parts = mailbox_path.split('/')
     script_lines = []
-    
+
     # Start with the top-level folder
     script_lines.append(f'set mb to (first mail folder of acct whose name is "{path_parts[0]}")')
-    
+
     # Navigate through each subfolder
     for i in range(1, len(path_parts)):
         subfolder_name = path_parts[i]
         script_lines.append(f'set mb to (first mail folder of mb whose name is "{subfolder_name}")')
-    
+
     return '\n        '.join(script_lines)
 
 
@@ -241,15 +203,15 @@ def get_mailboxes_for_account(account_name: str) -> List[str]:
         end try
     end tell
     '''
-    
+
     result = run_applescript(script)
-    
+
     if not result or result.startswith("OSASCRIPT_ERROR:") or result.startswith("APPLE_SCRIPT_ERROR:"):
         print(f"Error retrieving mailboxes for account '{account_name}': {result}")
         return []
 
     mailboxes = [mailbox.strip() for mailbox in result.split('\n') if mailbox.strip()]
-    
+
     return mailboxes
 
 
@@ -449,7 +411,7 @@ def get_emails_from_date(account_name: str, mailbox_name: str, target_date: str)
             parts = result.split("|||DELIM|||", 2)
             if len(parts) >= 3:
                 # Clean the email content before creating the Email object
-                cleaned_content = clean_email_content(parts[1].strip())
+                cleaned_content = clean_email_content(parts[1].strip(), parts[0].strip())
                 email = Email(
                     subject=parts[0].strip(),
                     content=cleaned_content,
@@ -578,14 +540,14 @@ def get_email_with_attachments(account_name: str, mailbox_name: str, msg_id: str
         return allInfo
     end tell
     '''
-    
+
     result = run_applescript(script)
     if not result or "|||ATTACHMENTS|||" not in result:
         return "", []  # Return empty string instead of undefined content
-        
+
     parts = result.split("|||ATTACHMENTS|||")
     content = parts[0].strip()
-    
+
     attachments_info = []
     if len(parts) > 1:
         attachments_part = parts[1].split("|||EMBEDDED|||")
@@ -593,14 +555,14 @@ def get_email_with_attachments(account_name: str, mailbox_name: str, msg_id: str
             attachments_info.extend(attachments_part[0].strip().split(", "))
         if len(attachments_part) > 1 and attachments_part[1].strip():
             attachments_info.extend(attachments_part[1].strip().split(", "))
-    
+
     # Clean the content
     cleaned_content = clean_email_content(content)
-    
+
     # Add attachment information to the content
     if attachments_info:
         cleaned_content += "\n\n[Attachments and Images:\n" + "\n".join(attachments_info) + "]"
-    
+
     return cleaned_content, attachments_info
 
 
@@ -656,10 +618,10 @@ def get_most_recent_email(account_name: str, mailbox_name: str) -> Optional[Emai
         msg_id = parts[0].strip()
         subject = parts[1].strip()
         received = parts[2].strip()
-        
+
         # Get content with attachment information
         content, _ = get_email_with_attachments(account_name, mailbox_name, msg_id)
-        
+
         return Email(
             subject=subject,
             content=content,
@@ -707,11 +669,11 @@ def get_email_content(account_name: str, mailbox_name: str, msg_id: str) -> str:
         return msgContent
     end tell
     '''
-    
+
     result = run_applescript(script)
     if not result:
         return ""
-    
+
     # Clean the content
     return clean_email_content(result.strip())
 
@@ -719,11 +681,11 @@ def get_email_content(account_name: str, mailbox_name: str, msg_id: str) -> str:
 def is_meeting_or_booking_email(subject: str, content: str) -> bool:
     """
     Check if an email is a Teams meeting or booking notification.
-    
+
     Args:
         subject: Email subject
         content: Email content
-        
+
     Returns:
         True if the email is a meeting/booking notification, False otherwise
     """
@@ -738,7 +700,7 @@ def is_meeting_or_booking_email(subject: str, content: str) -> bool:
         r'Calendar Event',
         r'Meeting Invitation'
     ]
-    
+
     # Common patterns in booking emails
     booking_patterns = [
         r'Booking Confirmation',
@@ -750,13 +712,13 @@ def is_meeting_or_booking_email(subject: str, content: str) -> bool:
         r'Invitation to',
         r'has invited you to'
     ]
-    
+
     # Check subject and content for patterns
     all_patterns = teams_patterns + booking_patterns
     for pattern in all_patterns:
         if re.search(pattern, subject, re.IGNORECASE) or re.search(pattern, content, re.IGNORECASE):
             return True
-            
+
     return False
 
 
@@ -831,14 +793,14 @@ def get_n_most_recent_emails(account_name: str, mailbox_name: str, n: int) -> Li
                 subject = parts[1].strip()
                 content = parts[2].strip()
                 received = parts[3].strip()
-                
+
                 # Skip meeting/booking emails
                 if is_meeting_or_booking_email(subject, content):
                     continue
-                
+
                 # Clean the content
                 cleaned_content = clean_email_content(content)
-                
+
                 email = Email(
                     subject=subject,
                     content=cleaned_content,
