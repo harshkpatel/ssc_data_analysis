@@ -12,6 +12,7 @@ from utils.csv_storage import save_to_csv
 from mac_outlook_client import (
     get_outlook_accounts,
     select_from_list,
+    select_upper_and_lower_bound,
     get_n_most_recent_emails,
     clean_email_content,
     clean_email_subject
@@ -83,8 +84,8 @@ def main():
         return
 
     # Let user select account
-    selected_account = select_from_list(accounts, "Select an Outlook account:")
-    if not selected_account:
+    selected_accounts = select_upper_and_lower_bound(accounts, "Select an Outlook account:")
+    if not selected_accounts:
         return
 
     # Default behavior: scrape all emails from the three mailboxes and store in SQLite DB
@@ -95,31 +96,32 @@ def main():
     ]
     init_db()  # Ensure DB is initialized
     total_new = 0
-    for mailbox in mailboxes_to_scrape:
-        print(f"\nScraping mailbox: {mailbox}")
-        emails = get_n_most_recent_emails(selected_account, mailbox, 10000)  # Large number to get all
-        if not emails:
-            print(f"No emails found in {mailbox}.")
-            continue
-        # Only keep emails up to yesterday
-        today = datetime.datetime.now().strftime("%Y-%m-%d")
-        filtered_emails = [e for e in emails if e.received < today]
-        if not filtered_emails:
-            print(f"No emails up to yesterday in {mailbox}.")
-            continue
-        # Prepare for DB insert, cleaning subject and content first
-        email_tuples = [(
-            clean_email_subject(e.subject),
-            clean_email_content(e.content, e.subject),
-            e.received
-        ) for e in filtered_emails]
-        before_count = len(get_all_emails())
-        insert_emails_bulk(email_tuples)
-        after_count = len(get_all_emails())
-        added = after_count - before_count
-        total_new += added
-        print(f"Added {added} new emails from {mailbox}.")
-    print(f"\nTotal new emails added: {total_new}")
+    for selected_account in selected_accounts:
+        for mailbox in mailboxes_to_scrape:
+            print(f"\nScraping mailbox: {mailbox}")
+            emails = get_n_most_recent_emails(selected_account, mailbox, 10000)  # Large number to get all
+            if not emails:
+                print(f"No emails found in {mailbox}.")
+                continue
+            # Only keep emails up to yesterday
+            today = datetime.datetime.now().strftime("%Y-%m-%d")
+            filtered_emails = [e for e in emails if e.received < today]
+            if not filtered_emails:
+                print(f"No emails up to yesterday in {mailbox}.")
+                continue
+            # Prepare for DB insert, cleaning subject and content first
+            email_tuples = [(
+                clean_email_subject(e.subject),
+                clean_email_content(e.content),
+                e.received
+            ) for e in filtered_emails]
+            before_count = len(get_all_emails())
+            insert_emails_bulk(email_tuples)
+            after_count = len(get_all_emails())
+            added = after_count - before_count
+            total_new += added
+            print(f"Added {added} new emails from {mailbox}.")
+        print(f"\nTotal new emails added: {total_new}")
 
 
 if __name__ == "__main__":
