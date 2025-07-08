@@ -15,7 +15,8 @@ from mac_outlook_client import (
     select_upper_and_lower_bound,
     get_n_most_recent_emails,
     clean_email_content,
-    clean_email_subject
+    clean_email_subject,
+    select_stream_classification
 )
 from utils.sqlite_storage import init_db, insert_emails_bulk, get_all_emails
 
@@ -88,6 +89,14 @@ def main():
     if not selected_accounts:
         return
 
+    # Prompt for stream classification
+    stream = select_stream_classification()
+    if not stream:
+        print("No stream selected. Exiting.")
+        return
+
+    print(f"\nSelected stream: {stream}")
+
     # Default behavior: scrape all emails from the three mailboxes and store in SQLite DB
     mailboxes_to_scrape = [
         "Inbox/Awaiting Information",
@@ -109,18 +118,19 @@ def main():
             if not filtered_emails:
                 print(f"No emails up to yesterday in {mailbox}.")
                 continue
-            # Prepare for DB insert, cleaning subject and content first
+            # Prepare for DB insert, cleaning subject and content first, and including stream
             email_tuples = [(
                 clean_email_subject(e.subject),
                 clean_email_content(e.content),
-                e.received
+                e.received,
+                stream
             ) for e in filtered_emails]
             before_count = len(get_all_emails())
             insert_emails_bulk(email_tuples)
             after_count = len(get_all_emails())
             added = after_count - before_count
             total_new += added
-            print(f"Added {added} new emails from {mailbox}.")
+            print(f"Added {added} new emails from {mailbox} with stream classification: {stream}")
         print(f"\nTotal new emails added: {total_new}")
 
 

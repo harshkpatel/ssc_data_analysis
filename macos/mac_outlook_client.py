@@ -143,6 +143,20 @@ def select_upper_and_lower_bound(items: List[str], prompt: str) -> Optional[List
         except ValueError:
             print("Please enter a valid number.")
 
+def select_stream_classification() -> Optional[str]:
+    """Present a menu for user to select the stream classification."""
+    streams = ["MPS", "LS", "RC", "SS", "HUM", "CS"]
+    
+    print("\nSelect the stream classification for these emails:")
+    print("MPS - Mathematical & Physical Sciences")
+    print("LS - Life Sciences") 
+    print("RC - Rotman Commerce")
+    print("SS - Social Sciences")
+    print("HUM - Humanities")
+    print("CS - Computer Science")
+    
+    return select_from_list(streams, "Select stream:")
+
 def run_applescript(script: str) -> str:
     """Execute AppleScript and return the result."""
     process = subprocess.Popen(

@@ -21,9 +21,9 @@ def export_to_csv(emails, filename):
     filepath = os.path.join(csv_dir, filename)
     with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['subject', 'content', 'received'])
-        for subject, content, received in emails:
-            writer.writerow([subject, content, received])
+        writer.writerow(['subject', 'content', 'received', 'stream'])
+        for subject, content, received, stream in emails:
+            writer.writerow([subject, content, received, stream])
     print(f"Exported {len(emails)} emails to {filepath}")
 
 def main():

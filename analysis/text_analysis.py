@@ -18,10 +18,12 @@ import re
 import os
 
 # Download required NLTK data
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
-nltk.download('averaged_perceptron_tagger')
+
+def ensure_nltk_data():
+    nltk.download('punkt')
+    nltk.download('stopwords')
+    nltk.download('wordnet')
+    nltk.download('averaged_perceptron_tagger')
 
 class StudentEmailAnalyzer:
     def __init__(self, csv_path):
@@ -156,58 +158,54 @@ class StudentEmailAnalyzer:
             'similarity_score': 1 - dist.flatten()[most_similar_idx]
         }
 
-def main():
-    # Initialize analyzer with the path to the CSV file
-    analyzer = StudentEmailAnalyzer('csv_files/sample_student_emails.csv')
-    
-    # Perform sentiment analysis
-    print("\nSentiment Analysis Results:")
-    sentiment_results = analyzer.perform_sentiment_analysis()
-    print("\nSentiment Distribution:")
-    print(sentiment_results['sentiment_category'].value_counts())
-    print("\nSample of Sentiment Analysis:")
-    print(sentiment_results.head())
-    
-    # Extract keywords from all emails
-    print("\nTop Keywords Across All Emails:")
-    all_text = ' '.join(analyzer.df['content'])
-    keywords = analyzer.extract_keywords(all_text)
-    print(keywords[:10])
-    
-    # Perform topic modeling
-    print("\nTopic Modeling Results:")
-    topics = analyzer.perform_topic_modeling()
-    for i, topic in enumerate(topics):
-        print(f"Topic {i+1}: {', '.join(topic)}")
-    
-    # Cluster emails
-    print("\nEmail Clustering Results:")
-    cluster_stats, cluster_keywords = analyzer.cluster_emails()
-    print("\nCluster Statistics:")
-    print(cluster_stats)
-    print("\nTop Keywords by Cluster:")
-    for cluster, keywords in cluster_keywords.items():
-        print(f"Cluster {cluster}: {', '.join(keywords)}")
-    
-    # Analyze concordance for common words
-    print("\nConcordance Analysis for 'course':")
-    analyzer.analyze_concordance("course")
-    
-    # Answer sample queries
-    print("\nQuery Answering Examples:")
-    queries = [
-        "How do I register for courses?",
-        "What housing options are available?",
-        "How do I get a student ID card?",
-        "What are the computer science program requirements?"
-    ]
-    
-    for query in queries:
-        print(f"\nQuery: {query}")
-        result = analyzer.answer_query(query)
-        print(f"Answer: {result['answer']}")
-        print(f"Subject: {result['subject']}")
-        print(f"Similarity Score: {result['similarity_score']:.2f}")
-
-if __name__ == "__main__":
-    main() 
+# Remove or comment out the main() function and any direct print statements
+# analyzer = StudentEmailAnalyzer('csv_files/sample_student_emails.csv')
+#
+# # Perform sentiment analysis
+# print("\nSentiment Analysis Results:")
+# sentiment_results = analyzer.perform_sentiment_analysis()
+# print("\nSentiment Distribution:")
+# print(sentiment_results['sentiment_category'].value_counts())
+# print("\nSample of Sentiment Analysis:")
+# print(sentiment_results.head())
+#
+# # Extract keywords from all emails
+# print("\nTop Keywords Across All Emails:")
+# all_text = ' '.join(analyzer.df['content'])
+# keywords = analyzer.extract_keywords(all_text)
+# print(keywords[:10])
+#
+# # Perform topic modeling
+# print("\nTopic Modeling Results:")
+# topics = analyzer.perform_topic_modeling()
+# for i, topic in enumerate(topics):
+#     print(f"Topic {i+1}: {', '.join(topic)}")
+#
+# # Cluster emails
+# print("\nEmail Clustering Results:")
+# cluster_stats, cluster_keywords = analyzer.cluster_emails()
+# print("\nCluster Statistics:")
+# print(cluster_stats)
+# print("\nTop Keywords by Cluster:")
+# for cluster, keywords in cluster_keywords.items():
+#     print(f"Cluster {cluster}: {', '.join(keywords)}")
+#
+# # Analyze concordance for common words
+# print("\nConcordance Analysis for 'course':")
+# analyzer.analyze_concordance("course")
+#
+# # Answer sample queries
+# print("\nQuery Answering Examples:")
+# queries = [
+#     "How do I register for courses?",
+#     "What housing options are available?",
+#     "How do I get a student ID card?",
+#     "What are the computer science program requirements?"
+# ]
+#
+# for query in queries:
+#     print(f"\nQuery: {query}")
+#     result = analyzer.answer_query(query)
+#     print(f"Answer: {result['answer']}")
+#     print(f"Subject: {result['subject']}")
+#     print(f"Similarity Score: {result['similarity_score']:.2f}") 
