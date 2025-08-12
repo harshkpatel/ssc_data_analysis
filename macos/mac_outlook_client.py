@@ -1,23 +1,31 @@
 #!/usr/bin/env python3
+"""
+Helpers for interacting with Outlook on macOS via AppleScript and cleaning email content.
+"""
+
 import subprocess
 import re
 from typing import List, Optional
 from models.common_models import Email
-from email_reply_parser import EmailReplyParser
+try:
+    from email_reply_parser import EmailReplyParser
+    HAS_EMAIL_REPLY_PARSER = True
+except Exception:
+    HAS_EMAIL_REPLY_PARSER = False
 
 def clean_email_subject(subject: str) -> str:
-    """Clean email subject by removing extra whitespace."""
+    """Return trimmed subject or empty string if missing."""
     if not subject:
         return ""
     return subject.strip()
 
 
 def clean_email_content(content: str) -> str:
+    """Return cleaned body text: strip quoted replies, HTML, warnings, and separators."""
     if not content:
         return ""
 
-    parsed = EmailReplyParser.parse_reply(content)
-    content = parsed.strip()
+    content = parse_visible_reply_text(content)
 
     # Clean HTML Tags
     content = re.sub(r'<[^>]*>', '', content)
@@ -30,7 +38,7 @@ def clean_email_content(content: str) -> str:
 
     # Remove Outlook security warnings
     content = re.sub(
-        r'You don\'t often get email from .+?Learn why this is important',
+        r"You don't often get email from .+?Learn why this is important",
         '',
         content,
         flags=re.IGNORECASE | re.DOTALL
@@ -64,11 +72,47 @@ def remove_remaining_multilingual_separators(content: str) -> str:
     return content
 
 
+def parse_visible_reply_text(content: str) -> str:
+    """
+    Return only the visible (new) portion of an email reply.
+    Uses email_reply_parser when available, otherwise falls back to a
+    lightweight heuristic that removes quoted blocks and common separators.
+    """
+    if not content:
+        return ""
+
+    if HAS_EMAIL_REPLY_PARSER:
+        try:
+            return EmailReplyParser.parse_reply(content).strip()
+        except Exception:
+            # Fall back to heuristic if the library fails unexpectedly
+            pass
+
+    lines = content.splitlines()
+    kept_lines: List[str] = []
+
+    separator_patterns = [
+        r"^On .+ wrote:\s*$",
+        r"^From:\s*.+$",
+        r"^-+\s*Original Message\s*-+$",
+        r"^_{2,}$",
+    ]
+    compiled_separators = [re.compile(pat, re.IGNORECASE) for pat in separator_patterns]
+
+    for line in lines:
+        # Stop at common reply separators
+        if any(pat.search(line) for pat in compiled_separators):
+            break
+        # Skip quoted lines
+        if line.strip().startswith('>'):
+            continue
+        kept_lines.append(line)
+
+    return "\n".join(kept_lines).strip()
+
+
 def get_folder_navigation_applescript(mailbox_path: str) -> str:
-    """
-    Generate AppleScript code to navigate to a folder path like 'Inbox/Subfolder'.
-    Returns the AppleScript code that sets 'mb' to the target folder.
-    """
+    """Return AppleScript lines to select the folder path (e.g., 'Inbox/Sub')."""
     if '/' not in mailbox_path:
         # Simple case: top-level folder
         return f'set mb to (first mail folder of acct whose name is "{mailbox_path}")'
@@ -88,77 +132,19 @@ def get_folder_navigation_applescript(mailbox_path: str) -> str:
     return '\n        '.join(script_lines)
 
 def select_from_list(items: List[str], prompt: str) -> Optional[str]:
-    """Present a menu for user to select an item from a list."""
-    if not items:
-        print("No items available.")
-        return None
-
-    while True:
-        print(prompt)
-        print("Enter -1 to exit")
-        for i, item in enumerate(items, 1):
-            print(f"{i}. {item}")
-
-        try:
-            choice = int(input("Enter your choice (number): "))
-            if choice == -1:
-                print("Exiting program.")
-                return None
-            if 1 <= choice <= len(items):
-                return items[choice - 1]
-            else:
-                print("Invalid choice. Please try again.")
-        except ValueError:
-            print("Please enter a valid number.")
+    """Deprecated: retained for compatibility."""
+    return items[0] if items else None
 
 def select_upper_and_lower_bound(items: List[str], prompt: str) -> Optional[List[str]]:
-    """Present a menu for user to select multiple item from a list."""
-    if not items:
-        print("No items available.")
-        return None
-    upper, lower = 0, 0
-    while True:
-        print(prompt)
-        print("Enter -1 to exit")
-        for i, item in enumerate(items, 1):
-            print(f"{i}. {item}")
-
-        try:
-            choice = int(input("Enter a lower bound (number): "))
-            if choice == -1:
-                print("Exiting program.")
-                return None
-
-            if 1 <= choice <= len(items):
-                lower = choice
-            choice = int(input("Enter a upper bound (number): "))
-            if choice == -1:
-                print("Exiting program.")
-                return None
-            if 1 <= choice <= len(items):
-                upper = choice
-
-            return items[lower - 1:upper]
-
-        except ValueError:
-            print("Please enter a valid number.")
+    """Deprecated: retained for compatibility."""
+    return items if items else None
 
 def select_stream_classification() -> Optional[str]:
-    """Present a menu for user to select the stream classification."""
-    streams = ["MPS", "LS", "RC", "SS", "HUM", "CS"]
-    
-    print("\nSelect the stream classification for these emails:")
-    print("MPS - Mathematical & Physical Sciences")
-    print("LS - Life Sciences") 
-    print("RC - Rotman Commerce")
-    print("SS - Social Sciences")
-    print("HUM - Humanities")
-    print("CS - Computer Science")
-    
-    return select_from_list(streams, "Select stream:")
+    """Deprecated: stream is provided by the paths file."""
+    return None
 
 def run_applescript(script: str) -> str:
-    """Execute AppleScript and return the result."""
+    """Execute AppleScript and return text output or an error signature."""
     process = subprocess.Popen(
         ['osascript', '-e', script],
         stdout=subprocess.PIPE,
@@ -175,7 +161,7 @@ def run_applescript(script: str) -> str:
 
 
 def get_outlook_accounts() -> List[str]:
-    """Get a list of all accounts in Outlook."""
+    """Return a list of Outlook account names on this Mac."""
     script = '''
     tell application "Microsoft Outlook"
         set accountList to {}
@@ -200,17 +186,7 @@ def get_outlook_accounts() -> List[str]:
     return accounts
 
 def get_n_most_recent_emails(account_name: str, mailbox_name: str, n: int) -> List[Email]:
-    """
-    Get the n most recent emails from a specific account and mailbox.
-
-    Args:
-        account_name: The name of the Outlook account
-        mailbox_name: The name of the mailbox to scrape
-        n: Number of most recent emails to get
-
-    Returns:
-        List of Email objects
-    """
+    """Return up to n recent emails for a given account and mailbox path."""
     script = f'''
     tell application "Microsoft Outlook"
         set acct to (first exchange account whose name is "{account_name}")
@@ -255,10 +231,7 @@ def get_n_most_recent_emails(account_name: str, mailbox_name: str, n: int) -> Li
     '''
 
     result = run_applescript(script)
-    # Debug: Print raw AppleScript result
-    # print(f"Raw AppleScript result: {result}")
     if not result:
-        print("No results returned from AppleScript")
         return []
 
     emails = []
@@ -288,16 +261,7 @@ def get_n_most_recent_emails(account_name: str, mailbox_name: str, n: int) -> Li
     return emails
 
 def is_meeting_or_booking_email(subject: str, content: str) -> bool:
-    """
-    Check if an email is a Teams meeting or booking notification.
-
-    Args:
-        subject: Email subject
-        content: Email content
-
-    Returns:
-        True if the email is a meeting/booking notification, False otherwise
-    """
+    """Return True if the email looks like a meeting or Microsoft Bookings notification."""
     # Common patterns in Teams meeting emails
     teams_patterns = [
         r'Teams Meeting',
@@ -310,16 +274,26 @@ def is_meeting_or_booking_email(subject: str, content: str) -> bool:
         r'Meeting Invitation'
     ]
 
-    # Common patterns in booking emails
+    # Common patterns in booking emails (Microsoft Bookings / one-on-ones)
     booking_patterns = [
+        r'^New booking',
+        r'New booking',
+        r'Microsoft Bookings',
+        r'Bookings',
         r'Booking Confirmation',
+        r'Your booking is confirmed',
         r'Appointment Confirmed',
+        r'Join your appointment',
+        r'Reschedule',
+        r'Cancel or reschedule',
         r'Meeting Confirmation',
         r'Calendar Invitation',
         r'Event Details',
         r'Meeting Details',
         r'Invitation to',
-        r'has invited you to'
+        r'has invited you to',
+        r'One on One',
+        r'One-on-One',
     ]
 
     # Check subject and content for patterns
