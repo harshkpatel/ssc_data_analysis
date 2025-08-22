@@ -24,8 +24,6 @@ from typing import List, Tuple
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models.common_models import Email
-from utils.csv_storage import save_to_csv
 from mac_outlook_client import (
     get_outlook_accounts,
     get_n_most_recent_emails,
@@ -41,23 +39,17 @@ def validate_date(date_str: str) -> bool:
     Returns True if date is valid, False otherwise.
     """
     try:
-        # Parse the input date
         day, month, year = date_str.split('-')
         target_date = datetime.datetime(int(year), int(month), int(day))
-        
-        # Get today's date (without time)
         today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        # Check if date is today or in the future
         if target_date >= today:
             print(f"Error: Cannot scrape emails for today ({today.strftime('%d-%m-%Y')}) or future dates.")
             return False
-            
         return True
+
     except ValueError as e:
         print(f"Error: Invalid date format. Please use DD-MM-YYYY format. Error: {e}")
         return False
-
 
 def parse_mailbox_paths(file_path: str) -> List[Tuple[str, str, List[str]]]:
     """
@@ -139,8 +131,7 @@ def main():
     discovered_accounts = get_outlook_accounts()
     available_accounts_set = set(discovered_accounts)
     if not available_accounts_set:
-        print("No Outlook accounts found.")
-        return
+        print("Warning: No Outlook accounts discovered via AppleScript. Proceeding to attempt delegated access using names from the paths file.")
 
     # Initialize DB once
     init_db()
@@ -164,7 +155,8 @@ def main():
         candidates = [a for a in available if requested.lower() in a.lower() or simplified.lower() in a.lower()]
         if len(candidates) == 1:
             return candidates[0]
-        return None
+        # Allow pass-through for delegated accounts not listed in discovered accounts
+        return requested
 
     for account_name, stream, mailbox_paths in mailbox_definitions:
         resolved_account = resolve_account_name(account_name, discovered_accounts)
@@ -194,6 +186,7 @@ def main():
                     clean_email_content(e.content),
                     e.received,
                     stream,
+                    e.person_name,
                 )
                 for e in filtered_emails
             ]

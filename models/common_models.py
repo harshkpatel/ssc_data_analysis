@@ -9,11 +9,13 @@ class Email:
     subject: str
     content: str
     received: str
+    person_name: str = ""
 
     def to_dict(self) -> Dict[str, str]:
         """Convert to dictionary for CSV export."""
         return {
             "subject": self.subject,
             "content": self.content,
-            "received": self.received
+            "received": self.received,
+            "person_name": self.person_name
         }
